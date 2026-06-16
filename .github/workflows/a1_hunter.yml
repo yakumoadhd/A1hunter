@@ -1,0 +1,60 @@
+name: 🎯 A1ハンター
+
+on:
+  # ──────────────────────────────────────────────
+  # 毎時0分・30分に実行（スクリプト内で50分間リトライ）
+  # ※無料枠：月2,000分まで。50分×2回/h×24h = 2,400分/日なので
+  #   取得できるまで動かし続けたい場合は間隔を広げてください
+  # ──────────────────────────────────────────────
+  schedule:
+    - cron: "0 * * * *"   # 毎時0分
+    - cron: "30 * * * *"  # 毎時30分
+
+  # 手動実行ボタンも使えるようにする
+  workflow_dispatch:
+    inputs:
+      hunt_minutes:
+        description: "1回のジョブで何分リトライするか"
+        required: false
+        default: "50"
+
+jobs:
+  hunt:
+    name: A1インスタンス取得チャレンジ
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # 最大60分でジョブを強制終了（無限ループ防止）
+
+    steps:
+      # ────────────────────────────────────────
+      # 1. リポジトリをチェックアウト
+      # ────────────────────────────────────────
+      - name: 📥 チェックアウト
+        uses: actions/checkout@v4
+
+      # ────────────────────────────────────────
+      # 2. Python セットアップ
+      # ────────────────────────────────────────
+      - name: 🐍 Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ────────────────────────────────────────
+      # 3. A1ハンター実行
+      # ────────────────────────────────────────
+      - name: 🎯 A1ハンター実行
+        env:
+          # ── OCI認証情報（GitHub Secretsに登録）──
+          OCI_USER_OCID:        ${{ secrets.OCI_USER_OCID }}
+          OCI_TENANCY_OCID:     ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          OCI_REGION:           ${{ secrets.OCI_REGION }}
+          OCI_PRIVATE_KEY:      ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_FINGERPRINT:      ${{ secrets.OCI_FINGERPRINT }}
+          # ── メール通知（GitHub Secretsに登録）──
+          NOTIFY_EMAIL:         ${{ secrets.NOTIFY_EMAIL }}
+          GMAIL_ADDRESS:        ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:   ${{ secrets.GMAIL_APP_PASSWORD }}
+          # ── リトライ時間（手動実行時は上書き可）──
+          HUNT_MINUTES: ${{ github.event.inputs.hunt_minutes || '50' }}
+        run: python a1_hunter.py
